@@ -2,11 +2,11 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const socket = io();
 const bgImage = new Image();
-bgImage.src = '/zombiehanter/images/grass.png';
+bgImage.src = 'images/grass.png';
 const playerImg = new Image();
-playerImg.src = '/zombiehanter/images/player.png';
+playerImg.src = 'images/player.png';
 const zombieImg = new Image();
-zombieImg.src = '/zombiehanter/images/zombie.png';
+zombieImg.src = 'images/zombie.png';
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 let playerId = null;
 let players = {};
@@ -72,7 +72,8 @@ function draw() {
     ctx.strokeRect(sx - barW / 2, sy - 22, barW, barH);
   }
 for (const z of zombies) {
-    if (z.dead) continue; // Пропускаем мертвых зомби
+    if (!z) continue;
+	if (z.dead) continue; // Пропускаем мертвых зомби
     
     const { x: sx, y: sy } = iso(z.x, z.y);
     const size = 40;
@@ -180,21 +181,58 @@ socket.on('death', ({ id, msg }) => {
   if (id === playerId) {
     dead = true;
     deathMsg = msg;
-    respawnTimer = 5; // секунд
-    setTimeout(() => {
-      dead = false;
-      socket.emit('respawn');
-    }, 5000);
+respawnTimer = 5;
+const interval = setInterval(() => {
+  respawnTimer--;
+  if (respawnTimer <= 0) {
+    clearInterval(interval);
+    socket.emit('respawn');
+  }
+  const t = Math.max(0, respawnTimer);
+  document.getElementById('timer').textContent = t;
+}, 1000);
   }
 });
 socket.on('zombie_dead', ({ id }) => {
   if (zombies[id]) zombies[id].dead = true;
 });
 socket.on('zombie_respawn', ({ id, x, y }) => {
-  zombies[id] = { x, y, hp: 100, dead: false };
+  // ищем зомби по id
+  let found = false;
+  for (let i = 0; i < zombies.length; i++) {
+    if (zombies[i] && zombies[i].id === id) {
+      zombies[i].x = x;
+      zombies[i].y = y;
+      zombies[i].hp = 100;
+      zombies[i].dead = false;
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    zombies.push({ id, x, y, hp: 100, dead: false, speed: 0.2 });
+  }
+});
+socket.on('player_respawn', data => {
+  const { id, x, y, hp } = data;
+  if (!players[id]) {
+    players[id] = { x, y, hp, color: `hsl(${Math.random()*360},80%,60%)`, input: { x:0,y:0 }, dead: false };
+  } else {
+    const p = players[id];
+    p.dead = false;
+    p.hp = hp;
+    p.x = x;
+    p.y = y;
+  }
+
+  if (id === playerId) {
+    showMessage('You are back!');
+    dead = false;
+    respawnTimer = 0;
+  }
 });
 socket.on('state', state => {
-  players = state.players;
-  bullets = state.bullets;
+  players = state.players || {};
+  bullets = state.bullets || [];
   zombies = state.zombies || [];
 });
