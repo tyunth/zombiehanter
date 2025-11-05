@@ -34,6 +34,8 @@ setInterval(() => {
     const ny = iy / len;
     p.x += nx * PLAYER_SPEED * (TICK_MS / 50);
     p.y += ny * PLAYER_SPEED * (TICK_MS / 50);
+	p.x = Math.max(0, Math.min(MAP_WIDTH, p.x));
+	p.y = Math.max(0, Math.min(MAP_HEIGHT, p.y));
   }
 
   // 2) Обновляем пули
@@ -51,6 +53,7 @@ setInterval(() => {
 			if (z.hp <= 0) {
 				z.dead = true;
 				io.emit('zombie_dead', { id: z.id });
+				console.log('Zombie', z.id, 'died, will respawn in 5s');
 
 				setTimeout(() => {
 				z.hp = 100;
@@ -58,6 +61,7 @@ setInterval(() => {
 				z.y = Math.max(20, Math.min(MAP_HEIGHT - 20, ZOMBIE_SPAWN.y));
 				z.dead = false;
 				io.emit('zombie_respawn', { id: z.id, x: z.x, y: z.y });
+				console.log('Zombie', z.id, 'respawned at', z.x, z.y);
 				}, 5000);
 			}
 		break;
@@ -81,12 +85,12 @@ setInterval(() => {
         // удаляем пулю
         bullets.splice(bi, 1);
         // если игрок умер — убираем его (или помечаем)
-        if (pl.hp <= 0) {
-          // можно удалить или пометить для респауна
-          delete players[pid];
-          // уведомим всех о смерти (опционально)
-          io.emit('playerDeath', { id: pid, killer: b.ownerId });
-        }
+		if (pl.hp <= 0) {
+			// вместо удаления — помечаем как мёртвого
+			pl.dead = true;
+			pl.hp = 0;
+			io.emit('death', { id: pid, msg: "You've been shot by a Player" });
+		}
         break; // выйти по этой пуле (она уже удалена)
       }
     }
@@ -184,13 +188,30 @@ players[socket.id] = {
     delete players[socket.id];
     console.log('Игрок вышел:', socket.id);
   });
-  socket.on('respawn', () => {
-  const p = players[socket.id];
-  if (!p) return;
-  p.hp = 100;
-  p.dead = false;
-  p.x = Math.random() * 500;
-  p.y = Math.random() * 500;
+socket.on('respawn', () => {
+  let p = players[socket.id];
+  if (!p) {
+    // если по какой-то причине объект пропал — создаём заново
+    players[socket.id] = {
+      x: Math.random() * (MAP_WIDTH - 40) + 20,
+      y: Math.random() * (MAP_HEIGHT - 40) + 20,
+      color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+      angle: 0,
+      hp: 100,
+      input: { x: 0, y: 0 },
+      dead: false
+    };
+    p = players[socket.id];
+    console.log('Respawn: recreated player object for', socket.id);
+  } else {
+    p.hp = 100;
+    p.dead = false;
+    p.x = Math.random() * (MAP_WIDTH - 40) + 20;
+    p.y = Math.random() * (MAP_HEIGHT - 40) + 20;
+    console.log('Respawn: revived existing player', socket.id);
+  }
+
+  io.emit('player_respawn', { id: socket.id, x: p.x, y: p.y, hp: p.hp });
 });
 });
 
