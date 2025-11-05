@@ -48,17 +48,17 @@ setInterval(() => {
 		if (dist < 20) { // радиус попадания
 			z.hp -= 20;
 			b.dead = true;
-			if (z.hp <= 0 && !z.dead) {
+			if (z.hp <= 0) {
 				z.dead = true;
 				io.emit('zombie_dead', { id: z.id });
 
 				setTimeout(() => {
 				z.hp = 100;
-				z.x = ZOMBIE_SPAWN.x;
-				z.y = ZOMBIE_SPAWN.y;
+				z.x = Math.max(20, Math.min(MAP_WIDTH - 20, ZOMBIE_SPAWN.x));
+				z.y = Math.max(20, Math.min(MAP_HEIGHT - 20, ZOMBIE_SPAWN.y));
 				z.dead = false;
 				io.emit('zombie_respawn', { id: z.id, x: z.x, y: z.y });
-			}, 5000);
+				}, 5000);
 			}
 		break;
 		}
