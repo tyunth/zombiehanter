@@ -226,7 +226,7 @@ socket.on('player_respawn', data => {
   }
 
   if (id === playerId) {
-    showMessage('You are back!');
+    //showMessage('You are back!');
     dead = false;
     respawnTimer = 0;
   }
