@@ -2,11 +2,11 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const socket = io();
 const bgImage = new Image();
-bgImage.src = '/images/grass.png';
+bgImage.src = '/zombiehanter/images/grass.png';
 const playerImg = new Image();
-playerImg.src = '/images/player.png';
+playerImg.src = '/zombiehanter/images/player.png';
 const zombieImg = new Image();
-zombieImg.src = 'images/zombie.png';
+zombieImg.src = '/zombiehanter/images/zombie.png';
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 let playerId = null;
 let players = {};
@@ -71,25 +71,35 @@ function draw() {
     ctx.strokeStyle = '#222';
     ctx.strokeRect(sx - barW / 2, sy - 22, barW, barH);
   }
-  	for (const z of zombies) {
-		const { x: sx, y: sy } = iso(z.x, z.y);
-		const size = 40; // можно регулировать
-		ctx.drawImage(zombieImg, sx - size / 2, sy - size / 2, size, size);
+for (const z of zombies) {
+    if (z.dead) continue; // Пропускаем мертвых зомби
+    
+    const { x: sx, y: sy } = iso(z.x, z.y);
+    const size = 40;
+    
+    // Проверяем загрузилась ли картинка
+    if (zombieImg.complete) {
+        ctx.drawImage(zombieImg, sx - size / 2, sy - size / 2, size, size);
+    } else {
+        // Fallback - рисуем красный квадрат если картинка не загрузилась
+        ctx.fillStyle = '#f44336';
+        ctx.fillRect(sx - size/2, sy - size/2, size, size);
+    }
 
-		// HP bar над зомби
-		const barW = 36;
-		const barH = 6;
-		const hp = z.hp ?? 100;
-		const hpPct = Math.max(0, Math.min(1, hp / 100));
+    // HP bar над зомби
+    const barW = 36;
+    const barH = 6;
+    const hp = z.hp ?? 100;
+    const hpPct = Math.max(0, Math.min(1, hp / 100));
 
-		ctx.fillStyle = 'rgba(0,0,0,0.6)';
-		ctx.fillRect(sx - barW / 2, sy - 22, barW, barH);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(sx - barW / 2, sy - 22, barW, barH);
 
-		ctx.fillStyle = '#f44336';
-		ctx.fillRect(sx - barW / 2 + 1, sy - 22 + 1, (barW - 2) * hpPct, barH - 2);
+    ctx.fillStyle = '#f44336';
+    ctx.fillRect(sx - barW / 2 + 1, sy - 22 + 1, (barW - 2) * hpPct, barH - 2);
 
-		ctx.strokeStyle = '#222';
-		ctx.strokeRect(sx - barW / 2, sy - 22, barW, barH);
+    ctx.strokeStyle = '#222';
+    ctx.strokeRect(sx - barW / 2, sy - 22, barW, barH);
 }
 
   // --- Рисуем пули ---
