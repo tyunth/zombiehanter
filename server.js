@@ -93,29 +93,43 @@ setInterval(() => {
   }
   
   //Добавляем движение зомби
-  for (const z of zombies) {
-  // Находим ближайшего игрока
-  if (z.dead) continue;
-  const target = Object.values(players)[0];
-  if (!target) continue;
+for (const z of zombies) {
+    if (z.dead) continue;
+    
+    // Находим ближайшего живого игрока
+    let closestPlayer = null;
+    let minDist = Infinity;
+    
+    for (const player of Object.values(players)) {
+        if (player.dead) continue;
+        const dist = Math.hypot(player.x - z.x, player.y - z.y);
+        if (dist < minDist) {
+            minDist = dist;
+            closestPlayer = player;
+        }
+    }
+    
+    if (!closestPlayer) continue;
 
-  const dx = target.x - z.x;
-  const dy = target.y - z.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist > 1) {
-    z.x += (dx / dist) * z.speed;
-    z.y += (dy / dist) * z.speed;
-  }
+    const dx = closestPlayer.x - z.x;
+    const dy = closestPlayer.y - z.y;
+    const dist = Math.hypot(dx, dy);
+    
+    if (dist > 1) {
+        z.x += (dx / dist) * z.speed;
+        z.y += (dy / dist) * z.speed;
+    }
 
-  // Проверка на столкновение
-  if (dist < 20) {
-    target.hp = Math.max(0, target.hp - 0.2);
-	if (target.hp <= 0 && !target.dead) {
-        target.dead = true;
-        target.deathMsg = 'You\'ve been eaten by a Zombie';
-        io.emit('death', { id, msg: target.deathMsg });
-      }
-  }
+    // Проверка на столкновение с игроком
+    if (dist < 1.5) { // Увеличил радиус столкновения
+        closestPlayer.hp = Math.max(0, (closestPlayer.hp || 100) - 0.5);
+        
+        if (closestPlayer.hp <= 0 && !closestPlayer.dead) {
+            closestPlayer.dead = true;
+            closestPlayer.deathMsg = 'You\'ve been eaten by a Zombie';
+            io.emit('death', { id: Object.keys(players).find(key => players[key] === closestPlayer), msg: closestPlayer.deathMsg });
+        }
+    }
 }
 
   // 4) Удаляем старые пули по life
