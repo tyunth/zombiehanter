@@ -95,6 +95,7 @@ setInterval(() => {
   //Добавляем движение зомби
   for (const z of zombies) {
   // Находим ближайшего игрока
+  if (z.dead) continue;
   const target = Object.values(players)[0];
   if (!target) continue;
 
