@@ -15,6 +15,12 @@ const ZOMBIE_SPAWN = {
   x: WALL_THICKNESS + PLAY_WIDTH / 2, 
   y: WALL_THICKNESS + PLAY_HEIGHT / 2 
 };
+const PLAYER_SPAWNS = [
+  { x: 100, y: 100 },
+  { x: 700, y: 100 },
+  { x: 100, y: 500 },
+  { x: 700, y: 500 },
+];
 
 app.use(express.static('public'));
 
