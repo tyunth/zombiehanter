@@ -36,14 +36,6 @@ const BULLET_DAMAGE = 34;
 const BULLET_SPEED = 1500;
 const ZOMBIE_SPEED = 1;
 
-app.get('/debug-spawn-zombie', (req, res) => {
-  const id = nextZombieId++;
-  zombies.push({ x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id, speed: 0.2, dead: false });
-  io.emit('zombie_respawn', { id, x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y });
-  console.log(`DEBUG: Зомби ${id} заспавнился!`);
-  res.send(`Зомби ${id} заспавнился!`);
-});
-
 function clamp(pos) {
   return Math.max(WALL_THICKNESS, Math.min(MAP_WIDTH - WALL_THICKNESS, pos));
 }
@@ -193,7 +185,7 @@ io.on('connection', (socket) => {
   console.log('Подключился:', socket.id);
   console.log(`SPAWN: ${socket.id} at`, players[socket.id].x, players[socket.id].y);
   const playerNum = Object.keys(players).length + 1;
-  const spawn = PLAYER_SPAWNS[Math.floor(Math.random() * PLAYER_SPAWNS.length)];
+  const spawn = PLAYER_SPAWNS[1];
   players[socket.id] = {
   x: spawn.x,
   y: spawn.y,
