@@ -193,15 +193,13 @@ io.on('connection', (socket) => {
   console.log('Подключился:', socket.id);
   console.log(`SPAWN: ${socket.id} at`, players[socket.id].x, players[socket.id].y);
   const playerNum = Object.keys(players).length + 1;
+  const spawn = PLAYER_SPAWNS[Math.floor(Math.random() * PLAYER_SPAWNS.length)];
   players[socket.id] = {
-    x: WALL_THICKNESS + Math.random() * PLAY_WIDTH,
-    y: WALL_THICKNESS + Math.random() * PLAY_HEIGHT,
-    name: `Игрок ${playerNum}`,
-    color: `hsl(${Math.random() * 360}, 80%, 60%)`,
-    hp: 100,
-    input: { x: 0, y: 0 },
-    dead: false,
-    angle: 0
+  x: spawn.x,
+  y: spawn.y,
+  hp: 100,
+  color: getRandomColor(),
+  dead: false,
   };
 
   socket.emit('init', socket.id);
@@ -232,15 +230,13 @@ io.on('connection', (socket) => {
 
 socket.on('respawn', () => {
   const p = players[socket.id];
-  if (p) {
-    // ✅ РАНДОМ СПАУН
-    p.x = WALL_THICKNESS + Math.random() * PLAY_WIDTH;
-    p.y = WALL_THICKNESS + Math.random() * PLAY_HEIGHT;
-    p.hp = 100;
-    p.dead = false;
-    p.input = { x: 0, y: 0 };
-    io.emit('player_respawn', { id: socket.id, x: p.x, y: p.y, hp: p.hp });
-  }
+  if (!p) return;
+  const spawn = PLAYER_SPAWNS[Math.floor(Math.random() * PLAYER_SPAWNS.length)];
+  p.hp = 100;
+  p.dead = false;
+  p.x = spawn.x;
+  p.y = spawn.y;
+  io.emit('player_respawn', { id: socket.id, x: p.x, y: p.y });
 });
 
   socket.on('disconnect', () => {
