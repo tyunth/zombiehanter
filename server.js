@@ -88,6 +88,7 @@ setInterval(() => {
           z.dead = true;
           io.emit('zombie_dead', { id: z.id });
           killLog.push({ killer: b.ownerId, victim: 'Zombie', type: 'player_kills_zombie' });
+      console.log(`KILLLOG: player ${b.ownerId} killed zombie ${z.id}`);
           while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
           
           const zombieId = z.id;
@@ -116,12 +117,15 @@ setInterval(() => {
       if (dist < 20) {
         p.hp = Math.max(0, (p.hp || 100) - BULLET_DAMAGE);
         bullets.splice(i, 1);
-        if (p.hp <= 0) {
-          p.dead = true;
-          killLog.push({ killer: b.ownerId, victim: pid, type: 'player_kills_player' });
-          while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
-          io.emit('death', { id: pid, msg: 'Убит игроком!' });
-        }
+if (p.hp <= 0) {
+  p.dead = true;
+  // стандартный формат: killer — либо socket id строки (игрок), либо строка 'Zombie'
+  killLog.push({ killer: b.ownerId, victim: pid, type: 'player_kills_player' });
+  while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
+
+  console.log(`DEATH: player ${pid} killed by player ${b.ownerId}`);
+  io.emit('death', { id: pid, msg: 'Убит игроком!', killer: b.ownerId });
+}
         break;
       }
     }
@@ -155,12 +159,16 @@ setInterval(() => {
       
       if (dist < 35) {
         closest.player.hp = Math.max(0, closest.player.hp - 1);
-        if (closest.player.hp <= 0) {
-          closest.player.dead = true;
-          killLog.push({ killer: z.id, victim: closest.id, type: 'zombie_kills_player' });
-          while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
-          io.emit('death', { id: closest.id, msg: 'Съеден зомби!' });
-        }
+if (closest.player.hp <= 0) {
+  closest.player.dead = true;
+
+  // Для удобства клиента указываем killer как строку 'Zombie' (чтобы не путать с socket id)
+  killLog.push({ killer: 'Zombie', victim: closest.id, type: 'zombie_kills_player' });
+  while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
+
+  console.log(`DEATH: player ${closest.id} eaten by zombie ${z.id}`);
+  io.emit('death', { id: closest.id, msg: 'Съеден зомби!', killer: 'Zombie' });
+}
       }
     }
     
@@ -177,6 +185,7 @@ setInterval(() => {
 
 io.on('connection', (socket) => {
   console.log('Подключился:', socket.id);
+  console.log(`SPAWN: ${socket.id} at`, players[socket.id].x, players[socket.id].y);
   const playerNum = Object.keys(players).length + 1;
   players[socket.id] = {
     x: WALL_THICKNESS + Math.random() * PLAY_WIDTH,
