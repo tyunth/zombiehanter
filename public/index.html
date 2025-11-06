@@ -6,18 +6,11 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <!-- КАНВАС — БОЛЬШОЙ, ЧТОБЫ ВСЯ КАРТА ВЛЕЗЛА -->
   <canvas id="game" width="1200" height="800"></canvas>
-
-  <!-- UI -->
   <div id="kill-log"></div>
   <div id="timer"></div>
-
-  <!-- SOCKET.IO + КОНСТАНТЫ + КЛИЕНТ -->
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // Делаем размер карты доступным в client.js
     const MAP_WIDTH = 800;
     const MAP_HEIGHT = 600;
   </script>
