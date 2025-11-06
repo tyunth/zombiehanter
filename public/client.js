@@ -32,16 +32,17 @@ function iso(x, y) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // ✅ ФОН — покрывает ВСЮ карту (800x600)
   if (bgImage.complete) {
-    const pattern = ctx.createPattern(bgImage, 'repeat');
-    ctx.save();
-    ctx.fillStyle = pattern;
-    // ✅ Размер карты в изометрии
-    Iso = iso(MAP_WIDTH, MAP_HEIGHT);
-    ctx.fillRect(-mapIso.x / 2, -mapIso.y / 2, mapIso.x, mapIso.y);
-    ctx.restore();
-  }
+  const pattern = ctx.createPattern(bgImage, 'repeat');
+  ctx.save();
+  ctx.fillStyle = pattern;
+
+  // Объявляем размер карты в изометрии
+  const mapIso = iso(MAP_WIDTH, MAP_HEIGHT);
+
+  ctx.fillRect(-mapIso.x / 2, -mapIso.y / 2, mapIso.x, mapIso.y);
+  ctx.restore();
+}
 
   // ✅ ФИКСИРОВАННАЯ КАМЕРА — вся карта видна
   ctx.save();
