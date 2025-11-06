@@ -8,7 +8,15 @@ const io = new Server(server);
 
 const MAP_WIDTH = 800;
 const MAP_HEIGHT = 600;
-const ZOMBIE_SPAWN = { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 };
+const MAP_WIDTH = 800;
+const MAP_HEIGHT = 600;
+const WALL_THICKNESS = 40;  // ← Ширина стен
+const PLAY_WIDTH = MAP_WIDTH - WALL_THICKNESS * 2;  // 720
+const PLAY_HEIGHT = MAP_HEIGHT - WALL_THICKNESS * 2; // 520
+const ZOMBIE_SPAWN = { 
+  x: WALL_THICKNESS + PLAY_WIDTH / 2,   // 40 + 360 = 400
+  y: WALL_THICKNESS + PLAY_HEIGHT / 2   // 40 + 260 = 300
+};
 
 app.use(express.static('public'));
 
@@ -63,8 +71,8 @@ setInterval(() => {
     p.x += nx * PLAYER_SPEED * (TICK_MS / 50);
     p.y += ny * PLAYER_SPEED * (TICK_MS / 50);
     // ✅ ЖЁСТКОЕ ОГРАНИЧЕНИЕ — игровое поле видно полностью
-    p.x = Math.max(10, Math.min(MAP_WIDTH - 10, p.x));
-    p.y = Math.max(10, Math.min(MAP_HEIGHT - 10, p.y));
+p.x = Math.max(WALL_THICKNESS, Math.min(MAP_WIDTH - WALL_THICKNESS, p.x));
+p.y = Math.max(WALL_THICKNESS, Math.min(MAP_HEIGHT - WALL_THICKNESS, p.y));
   }
 
   // Пули
@@ -156,8 +164,8 @@ setInterval(() => {
       z.x += (dx / dist) * z.speed;
       z.y += (dy / dist) * z.speed;
       // ✅ ЖЁСТКОЕ ОГРАНИЧЕНИЕ ЗОМБИ
-      z.x = Math.max(10, Math.min(MAP_WIDTH - 10, z.x));
-      z.y = Math.max(10, Math.min(MAP_HEIGHT - 10, z.y));
+z.x = Math.max(WALL_THICKNESS, Math.min(MAP_WIDTH - WALL_THICKNESS, z.x));
+z.y = Math.max(WALL_THICKNESS, Math.min(MAP_HEIGHT - WALL_THICKNESS, z.y));
     }
     if (dist < 1.5) {
       closestPlayer.player.hp = Math.max(0, (closestPlayer.player.hp || 100) - 0.5);
@@ -181,6 +189,15 @@ setInterval(() => {
 
   // ✅ ensureZombie теперь работает для всех
   ensureZombie();
+  // ✅ ЖЁСТКИЙ CLAMP ДЛЯ ВСЕХ
+for (const [id, p] of Object.entries(players)) {
+  p.x = Math.max(10, Math.min(MAP_WIDTH - 10, p.x));
+  p.y = Math.max(10, Math.min(MAP_HEIGHT - 10, p.y));
+}
+for (const z of zombies) {
+p.x = Math.max(WALL_THICKNESS, Math.min(MAP_WIDTH - WALL_THICKNESS, p.x));
+p.y = Math.max(WALL_THICKNESS, Math.min(MAP_HEIGHT - WALL_THICKNESS, p.y));
+}
 
   io.emit('state', { players, bullets, zombies, killLog });
 }, TICK_MS);
