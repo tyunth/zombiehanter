@@ -20,7 +20,12 @@ let killLog = []; // <--- kill log
 
 const TILE = 32;
 
-// ... iso, основной draw ...
+function iso(x, y) {
+  return {
+    x: (x - y) * TILE,
+    y: (x + y) * TILE / 2
+  };
+}
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
