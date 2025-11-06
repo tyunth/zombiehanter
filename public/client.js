@@ -1,7 +1,7 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const socket = io();
-
+const KILL_LOG_LIMIT = 10;
 const bgImage = new Image();
 bgImage.src = '/zombiehanter/images/grass.png';
 const playerImg = new Image();
