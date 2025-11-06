@@ -31,9 +31,9 @@ let zombies = [{ x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id: nextZombieId
 const killLog = [];
 const KILL_LOG_LIMIT = 10;
 const TICK_MS = 50;
-const PLAYER_SPEED = 100;
+const PLAYER_SPEED = 1000;
 const BULLET_DAMAGE = 34;
-const BULLET_SPEED = 150;
+const BULLET_SPEED = 1500;
 const ZOMBIE_SPEED = 1;
 
 app.get('/debug-spawn-zombie', (req, res) => {
