@@ -38,7 +38,7 @@ function draw() {
     ctx.save();
     ctx.fillStyle = pattern;
     // ✅ Размер карты в изометрии
-    const mapIso = iso(MAP_WIDTH, MAP_HEIGHT);
+    Iso = iso(MAP_WIDTH, MAP_HEIGHT);
     ctx.fillRect(-mapIso.x / 2, -mapIso.y / 2, mapIso.x, mapIso.y);
     ctx.restore();
   }
@@ -139,8 +139,6 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
-// ✅ ДОБАВЬ В HTML
-const MAP_WIDTH = 800;  // ← глобально для клиента
 draw();
 
 const keys = {};
