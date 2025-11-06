@@ -123,21 +123,33 @@ function draw() {
   }
 
   // Kill log
-  const logElem = document.getElementById('kill-log');
-if (logElem && killLog.length > 0) {  // ← Добавь проверку
-  logElem.innerHTML = killLog.slice(-10).reverse().map(entry => {
-    const killerName = players[entry.killer]?.name || (entry.killer === 'Zombie' ? 'Зомби' : entry.killer);
-    const victimName = entry.victim === 'Zombie' ? 'Зомби' : (players[entry.victim]?.name || entry.victim);
-    
-    if (entry.type === "player_kills_player")
+const logElem = document.getElementById('kill-log');
+if (logElem) {
+  logElem.innerHTML = killLog.slice(-KILL_LOG_LIMIT).reverse().map(entry => {
+    // Определим человекопонятные имена
+    let killerName = entry.killer;
+    if (entry.killer === 'Zombie') killerName = 'Зомби';
+    else if (players[entry.killer]?.name) killerName = players[entry.killer].name;
+    else if (typeof entry.killer === 'string' && entry.killer.length > 6) killerName = entry.killer.slice(0,6);
+
+    let victimName = entry.victim;
+    if (entry.victim === 'Zombie') victimName = 'Зомби';
+    else if (players[entry.victim]?.name) victimName = players[entry.victim].name;
+    else if (typeof entry.victim === 'string' && entry.victim.length > 6) victimName = entry.victim.slice(0,6);
+
+    if (entry.type === 'player_kills_player') {
       return `<span style="color:#90ff90;font-weight:bold">${killerName}</span> убил <span style="color:#ff9090;font-weight:bold">${victimName}</span>`;
-    if (entry.type === "zombie_kills_player")
+    }
+    if (entry.type === 'zombie_kills_player') {
       return `<span style="color:#90e0ff;font-weight:bold">${killerName}</span> съел <span style="color:#ff9090;font-weight:bold">${victimName}</span>`;
-    if (entry.type === "player_kills_zombie")
+    }
+    if (entry.type === 'player_kills_zombie') {
       return `<span style="color:#90ff90;font-weight:bold">${killerName}</span> убил <span style="color:#aa3333">Зомби</span>`;
-    return "???";
+    }
+    return '…';
   }).join('<br>');
 }
+
 
   requestAnimationFrame(draw);
 }
@@ -177,42 +189,50 @@ canvas.addEventListener('click', (e) => {
 socket.on('init', id => playerId = id);
 
 socket.on('death', ({ id, msg, killer }) => {
+  console.log('RECEIVED death', id, msg, 'killer=', killer);
   if (id === playerId) {
     dead = true;
-    deathMsg = msg;
+    deathMsg = msg || 'Вы умерли';
     respawnTimer = 5;
-    
+
     const timerEl = document.getElementById('timer');
-    if (timerEl) timerEl.style.display = 'block';
-    
-    // ✅ КНОПКА РЕСПАУНА
-    const button = document.createElement('button');
-    button.textContent = 'ВОЗРОДИТЬСЯ';
-    button.style.cssText = `
-      position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);
-      padding: 15px 30px; font-size: 24px; font-weight: bold;
-      background: #4caf50; color: white; border: none; border-radius: 10px;
-      cursor: pointer; z-index: 10002; box-shadow: 0 0 20px rgba(0,255,0,0.5);
-    `;
-    button.disabled = true;
-    document.body.appendChild(button);
-    
+    if (timerEl) {
+      timerEl.style.display = 'block';
+      timerEl.textContent = Math.floor(respawnTimer);
+    }
+
+    // Если кнопка уже есть — не создаём новую
+    let btn = document.getElementById('respawn-btn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'respawn-btn';
+      btn.textContent = 'ВОЗРОДИТЬСЯ';
+      btn.style.cssText = `position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); padding: 15px 30px; font-size: 24px; font-weight: bold; background: #4caf50; color: white; border: none; border-radius: 10px; cursor: pointer; z-index: 10002; box-shadow: 0 0 20px rgba(0,255,0,0.5);`;
+      btn.disabled = true;
+      document.body.appendChild(btn);
+    } else {
+      btn.disabled = true;
+      btn.style.display = 'block';
+    }
+
+    // очистим старый интервал если есть
     if (window.respawnInterval) clearInterval(window.respawnInterval);
     window.respawnInterval = setInterval(() => {
       respawnTimer = Math.max(0, respawnTimer - 1);
       if (timerEl) timerEl.textContent = Math.floor(respawnTimer);
-      
+
       if (respawnTimer <= 0) {
-        button.disabled = false;
-        button.onclick = () => {
+        btn.disabled = false;
+        btn.onclick = () => {
           socket.emit('respawn');
-          document.body.removeChild(button);
+          btn.style.display = 'none';
           if (timerEl) timerEl.style.display = 'none';
         };
       }
     }, 1000);
   }
 });
+
 
 socket.on('zombie_dead', ({ id }) => {
   const z = zombies.find(z => z.id === id);
