@@ -118,7 +118,7 @@ function draw() {
     ctx.textAlign = 'center';
     ctx.fillText(deathMsg, canvas.width / 2, canvas.height / 2 - 20);
     ctx.font = '20px sans-serif';
-    ctx.fillText(`Respawning in ${respawnTimer.toFixed(0)}...`, canvas.width / 2, canvas.height / 2 + 20);
+    //ctx.fillText(`Respawning in ${respawnTimer.toFixed(0)}...`, canvas.width / 2, canvas.height / 2 + 20);
   }
 
   // ✅ KILL LOG
@@ -191,14 +191,14 @@ socket.on('death', ({ id, msg }) => {
     const timerEl = document.getElementById('timer');
     if (timerEl) timerEl.style.display = 'block';
     window.respawnInterval = setInterval(() => {
-      respawnTimer = Math.max(0, respawnTimer - 1);
-      if (timerEl) timerEl.textContent = respawnTimer;
+      respawnTimer = Math.max(0, respawnTimer - 1);  // ← УБРАЛ .toFixed()
+      if (timerEl) timerEl.textContent = Math.floor(respawnTimer);  // ← ОКРУГЛЕНИЕ
       if (respawnTimer <= 0) {
         clearInterval(window.respawnInterval);
-        if (timerEl) timerEl.style.display = 'none';
-        socket.emit('respawn');
-      }
-    }, 1000);
+      if (timerEl) timerEl.style.display = 'none';
+    socket.emit('respawn');
+  }
+}, 1000);
   }
 });
 
