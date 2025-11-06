@@ -1,14 +1,78 @@
+/* === БАЗА === */
 html, body {
   margin: 0;
+  padding: 0;
   height: 100%;
   background: #1a1a1a;
   display: flex;
   justify-content: center;
   align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
 }
 
-canvas {
+/* === КАНВАС === */
+#game {
   background: #222;
-  border: 2px solid #555;
+  border: 3px solid #555;
   border-radius: 8px;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+  image-rendering: pixelated; /* если используешь пиксель-арт */
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* === KILL LOG === */
+#kill-log {
+  position: absolute;
+  top: 50px;
+  right: 20px;
+  width: 260px;
+  min-height: 120px;
+  background: rgba(24, 32, 24, 0.92);
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  line-height: 1.5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  pointer-events: none;
+  white-space: pre-line;
+  z-index: 10000;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.7);
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #0a0;
+  backdrop-filter: blur(2px);
+}
+
+/* Скроллбар (опционально) */
+#kill-log::-webkit-scrollbar {
+  width: 6px;
+}
+#kill-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+#kill-log::-webkit-scrollbar-thumb {
+  background: #0a0;
+  border-radius: 3px;
+}
+
+/* === ТАЙМЕР РЕСПАУНА === */
+#timer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ff4444;
+  font-size: 36px;
+  font-weight: bold;
+  text-shadow: 
+    0 0 10px #000,
+    0 0 20px #f00,
+    0 0 30px #f00;
+  z-index: 10001;
+  pointer-events: none;
+  display: none;
+  letter-spacing: 1px;
 }
