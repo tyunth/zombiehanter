@@ -78,13 +78,17 @@ setInterval(() => {
           });
           while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
 
-          setTimeout(() => {
-            z.hp = 100;
-            z.x = Math.max(20, Math.min(MAP_WIDTH - 20, ZOMBIE_SPAWN.x));
-            z.y = Math.max(20, Math.min(MAP_HEIGHT - 20, ZOMBIE_SPAWN.y));
-            z.dead = false;
-            io.emit('zombie_respawn', { id: z.id, x: z.x, y: z.y });
-          }, 5000);
+    const zombieId = z.id;
+    setTimeout(() => {
+      const zz = zombies.find(zz => zz.id === zombieId);
+      if (zz) {
+        zz.hp = 100;
+        zz.x = ZOMBIE_SPAWN.x;
+        zz.y = ZOMBIE_SPAWN.y;
+        zz.dead = false;
+        io.emit('zombie_respawn', { id: zz.id, x: zz.x, y: zz.y });
+  }
+}, 5000);
         }
         break;
       }
@@ -187,16 +191,18 @@ io.on('connection', (socket) => {
     dead: false
   };
 
-  // На новом подключении — пересоздать хотя бы 1 зомби
-  if (zombies.length === 0 || zombies.every(z => z.dead)) {
-    zombies = [{
-      x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id: nextZombieId++, speed: 0.2, dead: false
-    }];
-    io.emit('zombie_respawn', { id: zombies[0].id, x: zombies[0].x, y: zombies[0].y });
-  }
+// Гарантируем хотя бы 1 зомби при старте
+if (zombies.length === 0 || zombies.every(z => z.dead)) {
+  const id = nextZombieId++;
+  zombies.push({ x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id, speed: 0.2, dead: false });
+}
 
   socket.emit('init', socket.id);
-
+  zombies.forEach(z => {
+  if (!z.dead) {
+    socket.emit('zombie_respawn', { id: z.id, x: z.x, y: z.y });
+  }
+});
   socket.on('move', (dir) => {
     const p = players[socket.id];
     if (!p) return;
