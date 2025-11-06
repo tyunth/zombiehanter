@@ -34,6 +34,11 @@ function draw() {
 
   if (bgImage.complete) {
   const pattern = ctx.createPattern(bgImage, 'repeat');
+  ctx.fillStyle = '#654321';
+ctx.fillRect(-100, -100, canvas.width + 200, 100);        // Верх
+ctx.fillRect(-100, -100, 100, canvas.height + 200);       // Лево
+ctx.fillRect(canvas.width - 100, -100, 100, canvas.height + 200); // Право
+ctx.fillRect(-100, canvas.height - 100, canvas.width + 200, 100); // Низ
   ctx.save();
   ctx.fillStyle = pattern;
 
