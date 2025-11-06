@@ -25,9 +25,10 @@ let zombies = [{ x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id: nextZombieId
 const killLog = [];
 const KILL_LOG_LIMIT = 10;
 const TICK_MS = 50;
-const PLAYER_SPEED = 3;
+const PLAYER_SPEED = 10;
 const BULLET_DAMAGE = 34;
-const BULLET_SPEED = 8;
+const BULLET_SPEED = 15;
+const ZOMBIE_SPEED = 0.6;
 
 app.get('/debug-spawn-zombie', (req, res) => {
   const id = nextZombieId++;
@@ -148,8 +149,8 @@ setInterval(() => {
       z.angle = Math.atan2(dy, dx);
       
       if (dist > 30) {
-        z.x += (dx / dist) * z.speed * 60 * (TICK_MS / 1000);
-        z.y += (dy / dist) * z.speed * 60 * (TICK_MS / 1000);
+        z.x += (dx / dist) * ZOMBIE_SPEED * 60 * (TICK_MS / 1000);
+        z.y += (dy / dist) * ZOMBIE_SPEED * 60 * (TICK_MS / 1000);
       }
       
       if (dist < 35) {
@@ -214,17 +215,18 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('respawn', () => {
-    const p = players[socket.id];
-    if (p) {
-      p.x = WALL_THICKNESS + Math.random() * PLAY_WIDTH;
-      p.y = WALL_THICKNESS + Math.random() * PLAY_HEIGHT;
-      p.hp = 100;
-      p.dead = false;
-      p.input = { x: 0, y: 0 };
-      io.emit('player_respawn', { id: socket.id, x: p.x, y: p.y, hp: p.hp });
-    }
-  });
+socket.on('respawn', () => {
+  const p = players[socket.id];
+  if (p) {
+    // ✅ РАНДОМ СПАУН
+    p.x = WALL_THICKNESS + Math.random() * PLAY_WIDTH;
+    p.y = WALL_THICKNESS + Math.random() * PLAY_HEIGHT;
+    p.hp = 100;
+    p.dead = false;
+    p.input = { x: 0, y: 0 };
+    io.emit('player_respawn', { id: socket.id, x: p.x, y: p.y, hp: p.hp });
+  }
+});
 
   socket.on('disconnect', () => {
     delete players[socket.id];
