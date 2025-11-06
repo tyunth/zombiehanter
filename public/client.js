@@ -1,14 +1,16 @@
-// ... предыдущее всё без изменений ...
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const socket = io();
+
 const bgImage = new Image();
 bgImage.src = '/zombiehanter/images/grass.png';
 const playerImg = new Image();
 playerImg.src = '/zombiehanter/images/player.png';
 const zombieImg = new Image();
 zombieImg.src = '/zombiehanter/images/zombie.png';
+
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
 let playerId = null;
 let players = {};
 let bullets = [];
@@ -16,7 +18,7 @@ let zombies = [];
 let dead = false;
 let deathMsg = '';
 let respawnTimer = 0;
-let killLog = []; // <--- kill log
+let killLog = [];
 
 const TILE = 32;
 
@@ -30,27 +32,38 @@ function iso(x, y) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // фон и основная трансформация
+  // ✅ ФОН — покрывает ВСЮ карту (800x600)
   if (bgImage.complete) {
     const pattern = ctx.createPattern(bgImage, 'repeat');
     ctx.save();
     ctx.fillStyle = pattern;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // ✅ Размер карты в изометрии
+    const mapIso = iso(MAP_WIDTH, MAP_HEIGHT);
+    ctx.fillRect(-mapIso.x / 2, -mapIso.y / 2, mapIso.x, mapIso.y);
     ctx.restore();
   }
 
+  // ✅ ФИКСИРОВАННАЯ КАМЕРА — вся карта видна
   ctx.save();
   ctx.translate(canvas.width / 2, 150);
-
+  
+  // Игроки
   for (const [id, p] of Object.entries(players)) {
     const { x: sx, y: sy } = iso(p.x, p.y);
     ctx.fillStyle = p.color || '#0f0';
     ctx.drawImage(playerImg, sx - 16, sy - 16, 32, 32);
     if (id === playerId) {
       ctx.strokeStyle = 'yellow';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.stroke();
     }
+    
+    // ✅ ИМЯ ИГРОКА
+    ctx.fillStyle = 'white';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name || id.slice(0, 4), sx, sy - 30);
+    
     // HP-bar
     const barW = 36, barH = 6;
     const hp = p.hp ?? 100, hpPct = Math.max(0, Math.min(1, hp / 100));
@@ -61,15 +74,19 @@ function draw() {
     ctx.strokeStyle = '#222';
     ctx.strokeRect(sx - barW / 2, sy - 22, barW, barH);
   }
+
+  // Зомби
   for (const z of zombies) {
     if (!z || z.dead) continue;
     const { x: sx, y: sy } = iso(z.x, z.y);
     const size = 40;
-    if (zombieImg.complete) ctx.drawImage(zombieImg, sx - size / 2, sy - size / 2, size, size);
+    if (zombieImg.complete) 
+      ctx.drawImage(zombieImg, sx - size / 2, sy - size / 2, size, size);
     else {
       ctx.fillStyle = '#f44336';
       ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
     }
+    // Зомби HP
     const barW = 36, barH = 6, hp = z.hp ?? 100;
     const hpPct = Math.max(0, Math.min(1, hp / 100));
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -88,11 +105,12 @@ function draw() {
     ctx.arc(sx, sy, 4, 0, Math.PI * 2);
     ctx.fill();
   }
+
   ctx.restore();
 
   // Death screen
   if (dead) {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'white';
     ctx.font = '28px sans-serif';
@@ -102,13 +120,12 @@ function draw() {
     ctx.fillText(`Respawning in ${respawnTimer.toFixed(0)}...`, canvas.width / 2, canvas.height / 2 + 20);
   }
 
-  // --- KILL LOG справа ---
+  // ✅ KILL LOG
   const logElem = document.getElementById('kill-log');
   if (logElem) {
-    // заполним и оформим kill-log
-    logElem.innerHTML = (killLog || []).slice(-10).reverse().map(entry => {
-      const killer = (players[entry.killer]?.name || players[entry.killer]?.color || entry.killer);
-      const victim = (players[entry.victim]?.name || players[entry.victim]?.color || entry.victim);
+    logElem.innerHTML = killLog.slice(-10).reverse().map(entry => {
+      const killer = players[entry.killer]?.name || entry.killer;
+      const victim = players[entry.victim]?.name || entry.victim;
       if (entry.type === "player_kills_player")
         return `<span style="color:#90ff90;font-weight:bold">${killer}</span> убил <span style="color:#ff9090;font-weight:bold">${victim}</span>`;
       if (entry.type === "zombie_kills_player")
@@ -122,6 +139,8 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
+// ✅ ДОБАВЬ В HTML
+const MAP_WIDTH = 800;  // ← глобально для клиента
 draw();
 
 const keys = {};
@@ -169,17 +188,12 @@ socket.on('death', ({ id, msg }) => {
     dead = true;
     deathMsg = msg;
     respawnTimer = 5;
-
-    // Очищаем старый таймер
     if (window.respawnInterval) clearInterval(window.respawnInterval);
-
     const timerEl = document.getElementById('timer');
     if (timerEl) timerEl.style.display = 'block';
-
     window.respawnInterval = setInterval(() => {
       respawnTimer = Math.max(0, respawnTimer - 1);
       if (timerEl) timerEl.textContent = respawnTimer;
-
       if (respawnTimer <= 0) {
         clearInterval(window.respawnInterval);
         if (timerEl) timerEl.style.display = 'none';
@@ -193,6 +207,7 @@ socket.on('zombie_dead', ({ id }) => {
   const z = zombies.find(z => z && z.id === id);
   if (z) z.dead = true;
 });
+
 socket.on('zombie_respawn', ({ id, x, y }) => {
   let found = false;
   for (let i = 0; i < zombies.length; i++) {
@@ -209,10 +224,11 @@ socket.on('zombie_respawn', ({ id, x, y }) => {
     zombies.push({ id, x, y, hp: 100, dead: false, speed: 0.2 });
   }
 });
+
 socket.on('player_respawn', data => {
   const { id, x, y, hp } = data;
   if (!players[id]) {
-    players[id] = { x, y, hp, color: `hsl(${Math.random()*360},80%,60%)`, input: { x:0, y:0 }, dead: false };
+    players[id] = { x, y, hp, color: `hsl(${Math.random()*360},80%,60%)`, name: `Игрок${id.slice(-2)}`, input: { x:0, y:0 }, dead: false };
   } else {
     const p = players[id];
     p.dead = false;
@@ -224,9 +240,11 @@ socket.on('player_respawn', data => {
     dead = false;
     respawnTimer = 0;
     deathMsg = '';
-    document.getElementById('timer').textContent = '';
+    const timerEl = document.getElementById('timer');
+    if (timerEl) timerEl.style.display = 'none';
   }
 });
+
 socket.on('state', state => {
   players = state.players || {};
   bullets = state.bullets || [];
