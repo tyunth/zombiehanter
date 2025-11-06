@@ -169,11 +169,20 @@ socket.on('death', ({ id, msg }) => {
     dead = true;
     deathMsg = msg;
     respawnTimer = 5;
-    const interval = setInterval(() => {
-      respawnTimer--;
-      document.getElementById('timer').textContent = Math.max(0, respawnTimer);
+
+    // Очищаем старый таймер
+    if (window.respawnInterval) clearInterval(window.respawnInterval);
+
+    const timerEl = document.getElementById('timer');
+    if (timerEl) timerEl.style.display = 'block';
+
+    window.respawnInterval = setInterval(() => {
+      respawnTimer = Math.max(0, respawnTimer - 1);
+      if (timerEl) timerEl.textContent = respawnTimer;
+
       if (respawnTimer <= 0) {
-        clearInterval(interval);
+        clearInterval(window.respawnInterval);
+        if (timerEl) timerEl.style.display = 'none';
         socket.emit('respawn');
       }
     }, 1000);
