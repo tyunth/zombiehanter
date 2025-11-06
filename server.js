@@ -13,17 +13,34 @@ app.use(express.static('public'));
 
 const players = {};
 const bullets = [];
-const zombies = [
-  { x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id: 1,speed: 0.2 }
+let nextZombieId = 2; // у первого зомби id=1
+let zombies = [
+  { x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id: 1, speed: 0.2, dead: false }
 ];
 
-// Игровой тик
+const killLog = [];
+const KILL_LOG_LIMIT = 10;
+
 const TICK_MS = 50;
-const PLAYER_SPEED = 0.08; // подбирай: чем больше — тем быстрее
+const PLAYER_SPEED = 0.08;
 const BULLET_DAMAGE = 34;
 
+function ensureZombie() {
+  // Если живых зомби нет, респаун
+  if (!zombies.some(z => !z.dead)) {
+    const id = nextZombieId++;
+    zombies.push({
+      x: ZOMBIE_SPAWN.x,
+      y: ZOMBIE_SPAWN.y,
+      hp: 100,
+      id, speed: 0.2, dead: false
+    });
+    io.emit('zombie_respawn', { id, x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y });
+  }
+}
+
 setInterval(() => {
-  // 1) Обновляем позиции игроков по их input (нормализация вектора)
+  // Двигаем игроков
   for (const id of Object.keys(players)) {
     const p = players[id];
     const ix = p.input?.x || 0;
@@ -34,188 +51,205 @@ setInterval(() => {
     const ny = iy / len;
     p.x += nx * PLAYER_SPEED * (TICK_MS / 50);
     p.y += ny * PLAYER_SPEED * (TICK_MS / 50);
-	p.x = Math.max(0, Math.min(MAP_WIDTH, p.x));
-	p.y = Math.max(0, Math.min(MAP_HEIGHT, p.y));
+    // Ограничение координат по карте
+    p.x = Math.max(0, Math.min(MAP_WIDTH, p.x));
+    p.y = Math.max(0, Math.min(MAP_HEIGHT, p.y));
   }
 
-  // 2) Обновляем пули
+  // Обновляем пули
   for (const b of bullets) {
     b.x += Math.cos(b.angle) * b.speed;
     b.y += Math.sin(b.angle) * b.speed;
     b.life--;
-	 // Проверяем столкновение пули с зомби
-	for (const z of zombies) {
-		if (z.dead) continue;
-		const dist = Math.hypot(b.x - z.x, b.y - z.y);
-		if (dist < 20) { // радиус попадания
-			z.hp -= 20;
-			b.dead = true;
-			if (z.hp <= 0) {
-				z.dead = true;
-				io.emit('zombie_dead', { id: z.id });
-				console.log('Zombie', z.id, 'died, will respawn in 5s');
+    // Столкновение пули с зомби
+    for (const z of zombies) {
+      if (z.dead) continue;
+      const dist = Math.hypot(b.x - z.x, b.y - z.y);
+      if (dist < 20) {
+        z.hp -= 20;
+        b.dead = true;
+        if (z.hp <= 0) {
+          z.dead = true;
+          io.emit('zombie_dead', { id: z.id });
+          killLog.push({
+            victim: "Zombie",
+            killer: b.ownerId,
+            type: "player_kills_zombie"
+          });
+          while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
 
-				setTimeout(() => {
-				z.hp = 100;
-				z.x = Math.max(20, Math.min(MAP_WIDTH - 20, ZOMBIE_SPAWN.x));
-				z.y = Math.max(20, Math.min(MAP_HEIGHT - 20, ZOMBIE_SPAWN.y));
-				z.dead = false;
-				io.emit('zombie_respawn', { id: z.id, x: z.x, y: z.y });
-				console.log('Zombie', z.id, 'respawned at', z.x, z.y);
-				}, 5000);
-			}
-		break;
-		}
-	}
+          setTimeout(() => {
+            z.hp = 100;
+            z.x = Math.max(20, Math.min(MAP_WIDTH - 20, ZOMBIE_SPAWN.x));
+            z.y = Math.max(20, Math.min(MAP_HEIGHT - 20, ZOMBIE_SPAWN.y));
+            z.dead = false;
+            io.emit('zombie_respawn', { id: z.id, x: z.x, y: z.y });
+          }, 5000);
+        }
+        break;
+      }
+    }
   }
 
-  // 3) Коллизии: пуля <-> игрок
+  // Пуля <-> игрок
   for (let bi = bullets.length - 1; bi >= 0; bi--) {
     const b = bullets[bi];
-    // проверяем по всем игрокам кроме владельца
     for (const [pid, pl] of Object.entries(players)) {
       if (pid === b.ownerId) continue;
       const dx = pl.x - b.x;
       const dy = pl.y - b.y;
-      const dist2 = dx*dx + dy*dy;
-      const hitRadius = 0.6; // порог попадания в мировых единицах — подбери
+      const dist2 = dx * dx + dy * dy;
+      const hitRadius = 0.6;
       if (dist2 <= hitRadius * hitRadius) {
-        // попал
         pl.hp = (pl.hp || 100) - (b.damage || BULLET_DAMAGE);
-        // удаляем пулю
         bullets.splice(bi, 1);
-        // если игрок умер — убираем его (или помечаем)
-		if (pl.hp <= 0) {
-			// вместо удаления — помечаем как мёртвого
-			pl.dead = true;
-			pl.hp = 0;
-			io.emit('death', { id: pid, msg: "You've been shot by a Player" });
-		}
-        break; // выйти по этой пуле (она уже удалена)
+        if (pl.hp <= 0 && !pl.dead) {
+          pl.dead = true;
+          pl.hp = 0;
+          killLog.push({
+            victim: pid,
+            killer: b.ownerId,
+            type: "player_kills_player"
+          });
+          while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
+          io.emit('death', { id: pid, msg: `You've been shot by a Player`, killer: b.ownerId });
+        }
+        break;
       }
     }
   }
-  
-  //Добавляем движение зомби
-for (const z of zombies) {
+
+  // Зомби атакует игрока
+  for (const z of zombies) {
     if (z.dead) continue;
-    
-    // Находим ближайшего живого игрока
     let closestPlayer = null;
     let minDist = Infinity;
-    
-    for (const player of Object.values(players)) {
-        if (player.dead) continue;
-        const dist = Math.hypot(player.x - z.x, player.y - z.y);
-        if (dist < minDist) {
-            minDist = dist;
-            closestPlayer = player;
-        }
+    for (const [pid, player] of Object.entries(players)) {
+      if (player.dead) continue;
+      const dist = Math.hypot(player.x - z.x, player.y - z.y);
+      if (dist < minDist) {
+        minDist = dist;
+        closestPlayer = { player, pid };
+      }
     }
-    
     if (!closestPlayer) continue;
-
-    const dx = closestPlayer.x - z.x;
-    const dy = closestPlayer.y - z.y;
+    const dx = closestPlayer.player.x - z.x;
+    const dy = closestPlayer.player.y - z.y;
     const dist = Math.hypot(dx, dy);
-    
     if (dist > 1) {
-        z.x += (dx / dist) * z.speed;
-        z.y += (dy / dist) * z.speed;
+      z.x += (dx / dist) * z.speed;
+      z.y += (dy / dist) * z.speed;
+      // --- Clamp zombie по карте ---
+      z.x = Math.max(0, Math.min(MAP_WIDTH, z.x));
+      z.y = Math.max(0, Math.min(MAP_HEIGHT, z.y));
     }
-
-    // Проверка на столкновение с игроком
-    if (dist < 1.5) { // Увеличил радиус столкновения
-        closestPlayer.hp = Math.max(0, (closestPlayer.hp || 100) - 0.5);
-        
-        if (closestPlayer.hp <= 0 && !closestPlayer.dead) {
-            closestPlayer.dead = true;
-            closestPlayer.deathMsg = 'You\'ve been eaten by a Zombie';
-            io.emit('death', { id: Object.keys(players).find(key => players[key] === closestPlayer), msg: closestPlayer.deathMsg });
-        }
+    if (dist < 1.5) {
+      closestPlayer.player.hp = Math.max(0, (closestPlayer.player.hp || 100) - 0.5);
+      if (closestPlayer.player.hp <= 0 && !closestPlayer.player.dead) {
+        closestPlayer.player.dead = true;
+        closestPlayer.player.deathMsg = "You've been eaten by a Zombie";
+        killLog.push({
+          victim: closestPlayer.pid,
+          killer: z.id,
+          type: "zombie_kills_player"
+        });
+        while (killLog.length > KILL_LOG_LIMIT) killLog.shift();
+        io.emit('death', { id: closestPlayer.pid, msg: closestPlayer.player.deathMsg, killer: z.id });
+      }
     }
-}
-
-  // 4) Удаляем старые пули по life
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    if (bullets[i].life <= 0) bullets.splice(i, 1);
   }
 
-  // 5) Рассылаем состояние (players и bullets и zombies)
-  io.emit('state', { players, bullets, zombies });
+  // Удаляем старые пули
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    if (bullets[i].life <= 0 || bullets[i].dead) bullets.splice(i, 1);
+  }
+
+  // Гарантировать, чтобы хотя бы один живой зомби был на поле
+  if (zombies.length === 0 || zombies.every(z => z.dead)) {
+    ensureZombie();
+  }
+
+  // Передаем состояние + killLog последним 10 событий
+  io.emit('state', { players, bullets, zombies, killLog });
+
 }, TICK_MS);
 
-// Игроки подключаются
 io.on('connection', (socket) => {
   console.log('Игрок подключился:', socket.id);
 
-players[socket.id] = {
-  x: Math.random() * 10,
-  y: Math.random() * 10,
-  color: `hsl(${Math.random() * 360}, 80%, 60%)`,
-  angle: 0,
-  hp: 100,                // добавлено HP
-  input: { x: 0, y: 0 }   // сюда будем писать последнее направление
-};
+  players[socket.id] = {
+    x: Math.random() * (MAP_WIDTH - 40) + 20,
+    y: Math.random() * (MAP_HEIGHT - 40) + 20,
+    color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+    angle: 0,
+    hp: 100,
+    input: { x: 0, y: 0 },
+    dead: false
+  };
+
+  // На новом подключении — пересоздать хотя бы 1 зомби
+  if (zombies.length === 0 || zombies.every(z => z.dead)) {
+    zombies = [{
+      x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id: nextZombieId++, speed: 0.2, dead: false
+    }];
+    io.emit('zombie_respawn', { id: zombies[0].id, x: zombies[0].x, y: zombies[0].y });
+  }
 
   socket.emit('init', socket.id);
 
-	socket.on('move', (dir) => {
-	const p = players[socket.id];
-	if (!p) return;
-	p.input = dir; // просто сохраняем направление
-	});
+  socket.on('move', (dir) => {
+    const p = players[socket.id];
+    if (!p) return;
+    p.input = dir;
+  });
 
   socket.on('shoot', (target) => {
-  const p = players[socket.id];
-  if (!p) return;
-  const dx = target.x - p.x;
-  const dy = target.y - p.y;
-  const angle = Math.atan2(dy, dx);
-  bullets.push({
-    x: p.x,
-    y: p.y,
-    angle,
-    speed: 0.6,
-    life: 80,           // ticks
-    color: p.color,
-    ownerId: socket.id,
-    damage: 34
+    const p = players[socket.id];
+    if (!p) return;
+    const dx = target.x - p.x;
+    const dy = target.y - p.y;
+    const angle = Math.atan2(dy, dx);
+    bullets.push({
+      x: p.x,
+      y: p.y,
+      angle,
+      speed: 0.6,
+      life: 80,
+      color: p.color,
+      ownerId: socket.id,
+      damage: 34
+    });
   });
-});
 
   socket.on('disconnect', () => {
     delete players[socket.id];
     console.log('Игрок вышел:', socket.id);
   });
-socket.on('respawn', () => {
-  let p = players[socket.id];
-  if (!p) {
-    // если по какой-то причине объект пропал — создаём заново
-    players[socket.id] = {
-      x: Math.random() * (MAP_WIDTH - 40) + 20,
-      y: Math.random() * (MAP_HEIGHT - 40) + 20,
-      color: `hsl(${Math.random() * 360}, 80%, 60%)`,
-      angle: 0,
-      hp: 100,
-      input: { x: 0, y: 0 },
-      dead: false
-    };
-    p = players[socket.id];
-    console.log('Respawn: recreated player object for', socket.id);
-  } else {
-    p.hp = 100;
-    p.dead = false;
-    p.x = Math.random() * (MAP_WIDTH - 40) + 20;
-    p.y = Math.random() * (MAP_HEIGHT - 40) + 20;
-    console.log('Respawn: revived existing player', socket.id);
-  }
 
-  io.emit('player_respawn', { id: socket.id, x: p.x, y: p.y, hp: p.hp });
+  socket.on('respawn', () => {
+    let p = players[socket.id];
+    if (!p) {
+      players[socket.id] = {
+        x: Math.random() * (MAP_WIDTH - 40) + 20,
+        y: Math.random() * (MAP_HEIGHT - 40) + 20,
+        color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+        angle: 0,
+        hp: 100,
+        input: { x: 0, y: 0 },
+        dead: false
+      };
+      p = players[socket.id];
+      console.log('Respawn: recreated player object for', socket.id);
+    } else {
+      p.hp = 100;
+      p.dead = false;
+      p.x = Math.random() * (MAP_WIDTH - 40) + 20;
+      p.y = Math.random() * (MAP_HEIGHT - 40) + 20;
+      console.log('Respawn: revived existing player', socket.id);
+    }
+    io.emit('player_respawn', { id: socket.id, x: p.x, y: p.y, hp: p.hp });
+  });
 });
-});
-
-
 
 const PORT = 3000;
 server.listen(PORT, () => console.log(`Сервер запущен: http://localhost:${PORT}`));
