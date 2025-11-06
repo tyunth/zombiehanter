@@ -16,10 +16,10 @@ const ZOMBIE_SPAWN = {
   y: WALL_THICKNESS + PLAY_HEIGHT / 2 
 };
 const PLAYER_SPAWNS = [
-  { x: 100, y: 100 },
-  { x: 700, y: 100 },
-  { x: 100, y: 500 },
-  { x: 700, y: 500 },
+  { x: 1000, y: 1000 },
+  { x: 7000, y: 1000 },
+  { x: 1000, y: 5000 },
+  { x: 400, y: 300 },
 ];
 
 app.use(express.static('public'));
@@ -31,10 +31,10 @@ let zombies = [{ x: ZOMBIE_SPAWN.x, y: ZOMBIE_SPAWN.y, hp: 100, id: nextZombieId
 const killLog = [];
 const KILL_LOG_LIMIT = 10;
 const TICK_MS = 50;
-const PLAYER_SPEED = 10;
+const PLAYER_SPEED = 100;
 const BULLET_DAMAGE = 34;
-const BULLET_SPEED = 15;
-const ZOMBIE_SPEED = 0.6;
+const BULLET_SPEED = 150;
+const ZOMBIE_SPEED = 1;
 
 app.get('/debug-spawn-zombie', (req, res) => {
   const id = nextZombieId++;
