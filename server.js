@@ -16,10 +16,10 @@ const ZOMBIE_SPAWN = {
   y: WALL_THICKNESS + PLAY_HEIGHT / 2 
 };
 const PLAYER_SPAWNS = [
-  { x: 1000, y: 1000 },
-  { x: 7000, y: 1000 },
-  { x: 1000, y: 5000 },
-  { x: 400, y: 300 },
+  { x: WALL_THICKNESS + PLAY_WIDTH / 4, WALL_THICKNESS + PLAY_HEIGHT / 4 },
+  { x: WALL_THICKNESS + PLAY_WIDTH / 4 * 3, WALL_THICKNESS + PLAY_HEIGHT / 4 },
+  { x: WALL_THICKNESS + PLAY_WIDTH / 4, WALL_THICKNESS + PLAY_HEIGHT / 4 * 3 },
+  { x: WALL_THICKNESS + PLAY_WIDTH / 4 * 3, WALL_THICKNESS + PLAY_HEIGHT / 4 * 3 },
 ];
 
 app.use(express.static('public'));
